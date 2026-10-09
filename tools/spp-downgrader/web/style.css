@@ -45,16 +45,6 @@ header h1 {
   font-size: 28px;
 }
 
-#auth-area {
-  max-width: 640px;
-  margin: 0 auto 24px;
-}
-
-#google-signin-button {
-  text-align: center;
-  margin: 16px 0;
-}
-
 .container {
   max-width: 640px;
   margin: 0 auto;

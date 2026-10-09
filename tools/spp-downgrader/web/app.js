@@ -1,6 +1,4 @@
-// SPP Downgrader Web App
-// Client-side gate using Google Identity Services. This is NOT a security boundary,
-// just a way to keep casual visitors out of an internal tool.
+// SPP Downgrader web app. Access control is handled by the host (Cloudflare Access).
 
 const fallbackVersions = ['12.1', '12', '11', '10', '9', '8.1'];
 let state = {
@@ -12,115 +10,6 @@ let state = {
   busy: false
 };
 
-// ========== Auth Gate ==========
-async function initAuth() {
-  const config = window.SDNA_CONFIG || {};
-  const clientId = config.googleClientId || '';
-  const domain = config.allowedDomain || 'example.com';
-  const isLocalhost = location.hostname === 'localhost' || location.hostname === '127.0.0.1';
-
-  const authArea = document.getElementById('auth-area');
-  const toolArea = document.getElementById('tool-area');
-  const devBanner = document.getElementById('dev-banner');
-
-  // Check sessionStorage for existing token
-  let token = null;
-  try {
-    const stored = sessionStorage.getItem('sdna_auth');
-    if (stored) {
-      const parsed = JSON.parse(stored);
-      if (parsed.exp * 1000 > Date.now()) {
-        token = parsed;
-      } else {
-        sessionStorage.removeItem('sdna_auth');
-      }
-    }
-  } catch (e) {}
-
-  if (!clientId) {
-    if (isLocalhost) {
-      devBanner.style.display = 'block';
-      toolArea.style.display = 'block';
-      authArea.style.display = 'none';
-      initWorker();
-      return;
-    } else {
-      authArea.innerHTML = '<p style="color: #c00; padding: 16px;">Sign-in is not configured.</p>';
-      toolArea.style.display = 'none';
-      return;
-    }
-  }
-
-  if (token) {
-    // User already authenticated
-    showAuthStatus(token.email);
-    toolArea.style.display = 'block';
-    authArea.style.display = 'block';
-    initWorker();
-    return;
-  }
-
-  // Show Google sign-in button
-  authArea.style.display = 'block';
-  toolArea.style.display = 'none';
-
-  window.onGoogleSignIn = (response) => {
-    const payload = parseJwt(response.credential);
-    const email = payload.email || '';
-    const hd = payload.hd || '';
-    const verified = payload.email_verified || false;
-
-    if (!verified || hd !== domain || !email.toLowerCase().endsWith('@' + domain)) {
-      authArea.innerHTML = `<p style="color: #c00; padding: 16px;">Only @${domain} accounts can use this tool.</p>`;
-      google.accounts.id.disableAutoSelect();
-      return;
-    }
-
-    try {
-      sessionStorage.setItem('sdna_auth', JSON.stringify({email, exp: payload.exp}));
-    } catch (e) {}
-
-    showAuthStatus(email);
-    toolArea.style.display = 'block';
-    initWorker();
-  };
-
-  google.accounts.id.initialize({
-    client_id: clientId,
-    callback: window.onGoogleSignIn,
-    hd: domain,
-    auto_select: true
-  });
-
-  const buttonDiv = document.getElementById('google-signin-button');
-  if (buttonDiv) {
-    google.accounts.id.renderButton(buttonDiv, {theme: 'outline', size: 'large'});
-  }
-}
-
-function parseJwt(token) {
-  const base64Url = token.split('.')[1];
-  const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
-  const jsonPayload = decodeURIComponent(atob(base64).split('').map(c => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2)).join(''));
-  return JSON.parse(jsonPayload);
-}
-
-function showAuthStatus(email) {
-  const authArea = document.getElementById('auth-area');
-  const signout = () => {
-    try {
-      sessionStorage.removeItem('sdna_auth');
-    } catch (e) {}
-    google.accounts.id.disableAutoSelect();
-    location.reload();
-  };
-  authArea.innerHTML = `
-    <div style="padding: 12px; background: var(--bg-secondary); border-radius: 4px;">
-      Signed in as <strong>${escapeHtml(email)}</strong>
-      <a href="javascript:void(0)" onclick="(${signout.toString()})(); return false;" style="margin-left: 16px;">Sign out</a>
-    </div>
-  `;
-}
 
 // ========== Worker Communication ==========
 function initWorker() {
@@ -168,12 +57,6 @@ function showStatus(text) {
 }
 
 // ========== UI Helpers ==========
-function escapeHtml(text) {
-  const div = document.createElement('div');
-  div.textContent = text;
-  return div.innerHTML;
-}
-
 function log(text) {
   const logEl = document.getElementById('log');
   const line = document.createTextNode(text + '\n');
@@ -512,7 +395,7 @@ function startBuild(target) {
 // ========== Init ==========
 window.addEventListener('DOMContentLoaded', () => {
   setupDropZone();
-  initAuth();
+  initWorker();
 
   document.getElementById('convert-btn').onclick = startConvert;
 });

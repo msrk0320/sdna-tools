@@ -20,7 +20,7 @@ def main():
     dist_dir.mkdir(parents=True)
 
     # Copy static files
-    static_files = ['index.html', 'app.js', 'worker.js', 'config.js', 'style.css']
+    static_files = ['index.html', 'app.js', 'worker.js', 'style.css']
     for fname in static_files:
         src = script_dir / fname
         dst = dist_dir / fname
