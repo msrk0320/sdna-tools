@@ -27,8 +27,9 @@ for fn in os.listdir(LIB):
     if fn.endswith(("_schema.json", "_defaults.json")):
         datas.append((os.path.join(LIB, fn), "profiles"))
 
-# tkinterdnd2 data
+# tkinterdnd2 data and the Sun Valley (Windows 11) ttk theme
 datas += collect_data_files("tkinterdnd2")
+datas += collect_data_files("sv_ttk")
 
 # h5py's HDF5 runtime DLLs
 binaries = collect_dynamic_libs("h5py")
@@ -53,7 +54,7 @@ a = Analysis(
         "lib.hbo_reserializer._schema", "lib.hbo_reserializer._helpers",
         "lib.hbo_reserializer._classify", "lib.hbo_reserializer._raster_plan",
         "lib.hbo_reserializer._raster_replace", "raster_resources",
-        "uspp_tool", "tkinterdnd2",
+        "uspp_tool", "tkinterdnd2", "sv_ttk",
     ],
     hookspath=[],
     runtime_hooks=[],

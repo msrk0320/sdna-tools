@@ -15,12 +15,12 @@ if (-not (Test-Path -LiteralPath $VenvPython)) {
     }
 }
 
-# Install PyInstaller and tkinterdnd2
-Write-Host "Installing PyInstaller and tkinterdnd2..."
+# Install PyInstaller, tkinterdnd2 and sv-ttk (Windows 11 theme)
+Write-Host "Installing PyInstaller, tkinterdnd2 and sv-ttk..."
 if (Get-Command uv -ErrorAction SilentlyContinue) {
-    & uv pip install --python $VenvPython pyinstaller tkinterdnd2
+    & uv pip install --python $VenvPython pyinstaller tkinterdnd2 sv-ttk
 } else {
-    & $VenvPython -m pip install pyinstaller tkinterdnd2
+    & $VenvPython -m pip install pyinstaller tkinterdnd2 sv-ttk
 }
 if ($LASTEXITCODE -ne 0) {
     Write-Host "Dependency install failed"
