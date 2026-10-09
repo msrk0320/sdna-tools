@@ -10,7 +10,7 @@ This repo is private. Only invite people using their @example.com email address 
 
 | Tool | Description |
 |------|-------------|
-| `tools/spp-downgrader` | Drag-and-drop converter that rebuilds a Substance 3D Painter .spp/.uspp for an older Painter version. |
+| `tools/spp-downgrader` | Drag-and-drop converter that rebuilds a Substance 3D Painter .spp/.uspp for an older Painter version. Desktop app, plus a browser version in `web/` (converts locally, nothing uploaded). |
 
 ## Adding a tool
 
