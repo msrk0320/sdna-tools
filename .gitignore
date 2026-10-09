@@ -18,4 +18,3 @@ __pycache__/
 # Logged-in browser profiles
 profile/
 browser-profile*/
-.wrangler/
