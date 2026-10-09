@@ -1,7 +1,7 @@
 # One-time setup: creates a Python virtual environment and installs requirements.
 $Here = $PSScriptRoot
 $Venv = Join-Path $Here '.venv'
-$Req  = Join-Path $Here 'universal-spp' 'requirements.txt'
+$Req  = Join-Path $Here 'universal-spp\requirements.txt'
 
 if (-not (Test-Path -LiteralPath $Req)) {
     Write-Host "requirements.txt not found at $Req"
