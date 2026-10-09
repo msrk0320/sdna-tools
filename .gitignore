@@ -1,0 +1,19 @@
+# Client data and heavy files - never commit
+*.spp
+*.uspp
+*.glb
+*.fbx
+*.zip
+*.gguf
+out/
+dist/
+data/
+# Environments and caches
+.venv/
+venv/
+node_modules/
+__pycache__/
+*.pyc
+# Logged-in browser profiles
+profile/
+browser-profile*/
