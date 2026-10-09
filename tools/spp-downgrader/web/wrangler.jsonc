@@ -1,0 +1,8 @@
+// Cloudflare deploy config: static site from dist/ (run build.py first, then `npx wrangler deploy` here).
+{
+  "name": "sdna-tools",
+  "compatibility_date": "2026-10-06",
+  "assets": {
+    "directory": "./dist"
+  }
+}

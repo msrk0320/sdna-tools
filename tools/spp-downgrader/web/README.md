@@ -20,17 +20,17 @@ Then open `http://localhost:8000` in your browser.
 
 ## Deployment
 
-Build and deploy to Cloudflare Pages:
+Live at https://sdna-tools.msrk0320.workers.dev (Cloudflare Worker with static assets, config in `wrangler.jsonc`). Build and deploy:
 
 ```
 python tools/spp-downgrader/web/build.py
-npx wrangler pages deploy tools/spp-downgrader/web/dist --project-name sdna-tools --branch main
+cd tools/spp-downgrader/web && npx wrangler deploy
 ```
 
-Access control is managed via Cloudflare Zero Trust > Access > Applications:
+Access control: Cloudflare dashboard > Workers & Pages > sdna-tools > Settings > Domains & Routes > workers.dev > enable Cloudflare Access, then edit its policy in Zero Trust > Access > Applications:
 
-1. Create a Self-hosted application with domain `sdna-tools.pages.dev` (and `*.sdna-tools.pages.dev` for preview URLs)
-2. Add an Allow policy that includes emails of users who should have access
+1. The Access application covers `sdna-tools.msrk0320.workers.dev`
+2. Set the Allow policy to include the emails of users who should have access
 3. Users log in with a one-time code sent to their email
 4. To invite someone, add their email to the policy; to remove access, delete it from the policy
 
