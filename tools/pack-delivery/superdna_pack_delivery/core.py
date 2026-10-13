@@ -284,6 +284,8 @@ class Inputs:
     dest_root: str = DEFAULT_DEST_ROOT
     candidates: dict = field(default_factory=dict)   # slot name -> ranked [Candidate]
     missing_images: list = field(default_factory=list)  # wired non-SKU images whose file is gone (not packed)
+    use_packed: bool = False  # the artist confirmed the maps already packed in the .blend; no Textures folder
+    packed_maps: list = field(default_factory=list)     # map suffixes of the packed Mat_<SKU>_<Map> images
 
 
 @dataclass
@@ -296,6 +298,7 @@ class PackPlan:
     errors: list = field(default_factory=list)
     warnings: list = field(default_factory=list)
     skipped: list = field(default_factory=list)
+    packed: bool = False  # deliver the maps already packed in the .blend instead of relinking to a folder
 
 
 def _norm(path):
@@ -326,7 +329,7 @@ def _slot_warnings(slot, chosen, cands, mtime_of):
 def build_plan(inp):
     sku, task = inp.sku.strip(), inp.task_id.strip()
     dest = os.path.join(inp.dest_root, "%s_v%d" % (sku, next_version(inp.dest_root, sku)))
-    plan = PackPlan(sku=sku, dest=dest, staging=dest + ".__packing")
+    plan = PackPlan(sku=sku, dest=dest, staging=dest + ".__packing", packed=inp.use_packed)
     err, warn = plan.errors, plan.warnings
 
     # names and the open file
@@ -350,11 +353,14 @@ def build_plan(inp):
         err.append("Image file missing: %s (the material uses it, so it cannot be packed)" % path)
 
     # slots
-    slots = [("GLB", inp.glb, os.path.isfile), ("SPP", inp.spp, os.path.isfile),
-             ("Textures folder", inp.textures, os.path.isdir)]
+    slots = [("GLB", inp.glb, os.path.isfile), ("SPP", inp.spp, os.path.isfile)]
+    if not plan.packed:
+        slots.append(("Textures folder", inp.textures, os.path.isdir))
     present = {}
     for slot, path, exists in slots:
-        if not path:
+        if not path and slot == "GLB":
+            err.append("No GLB found. Export it first (Export GLB button), then press Preview again.")
+        elif not path:
             err.append("%s slot is empty." % slot)
         elif not exists(path):
             err.append("%s not found: %s" % (slot, path))
@@ -378,6 +384,13 @@ def build_plan(inp):
     plan.copies += list(zip(overlays, overlay_names(overlays)))
 
     maps = {}
+    if plan.packed:
+        for suffix in REQUIRED_MAPS:
+            if suffix not in inp.packed_maps:
+                err.append("Packed maps have no Mat_%s_%s; pick the Textures folder instead." % (sku, suffix))
+        for suffix in OPTIONAL_MAPS:
+            if suffix not in inp.packed_maps:
+                warn.append("No %s map (fine if the product does not use it)." % DELIVERED_NAMES[suffix])
     if "Textures folder" in present:
         maps, plan.skipped = scan_textures(present["Textures folder"], sku)
         for suffix in REQUIRED_MAPS:
@@ -526,6 +539,8 @@ def write_report(task_dir, plan, now, outcome, log=""):
     lines += ["  %s -> %s" % (src, rel) for src, rel in plan.copies]
     lines += ["  (packed copy of the open .blend) -> %s.blend" % plan.sku]
     lines += ["  %s -> packed into %s.blend" % (src, plan.sku) for src, _rel in plan.maps]
+    if plan.packed:
+        lines += ["  (maps already packed in the open .blend, confirmed by the artist) -> kept in %s.blend" % plan.sku]
     lines += ["", "Errors:"]
     lines += ["  " + e for e in plan.errors] or ["  none"]
     lines += ["", "Warnings:"] + (["  " + w for w in plan.warnings] or ["  none"])

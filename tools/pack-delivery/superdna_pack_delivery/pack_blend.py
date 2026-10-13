@@ -1,5 +1,6 @@
 """Run by background Blender on the staged copy: drop the Live View workspace, the job profile and the legacy flip
 markers, purge unused data, relink SKU maps to Texture\\, pack wired images and every other resource, save.
+An empty <texture_dir> means the maps are already packed: they are kept as they are, not relinked.
 
 Usage: blender --background --factory-startup <staged.blend> --python pack_blend.py -- <sku> <texture_dir>
 Prints PURGED:<removed data-blocks>, PACKERROR: <reason> per problem and, once the SKU material is found, exactly one
@@ -77,13 +78,15 @@ def main(sku, texture_dir):
     images = blend_util.wired_images(mat)
     for img in images:
         suffix = blend_util.map_suffix(img, sku)
-        if suffix:
+        if suffix and texture_dir:
             name = "%s_%s.png" % (sku, core.DELIVERED_NAMES[suffix])
             if os.path.isfile(os.path.join(texture_dir, name)):
                 img.filepath = "//%s/%s" % (core.PACK_DIR, name)
                 img.reload()
             else:
                 print("PACKERROR: %s missing in %s" % (name, texture_dir))
+        elif img.packed_file:
+            continue  # already inside the .blend
         try:
             img.pack()
         except RuntimeError as e:

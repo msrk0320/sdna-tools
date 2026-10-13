@@ -1,6 +1,6 @@
 schema_version = "1.0.0"
 id = "superdna_pack_delivery"
-version = "1.4.0"
+version = "1.5.0"
 name = "SuperDNA Pack Delivery"
 tagline = "Pack an eyewear task into the client delivery folder"
 maintainer = "MadSrei"
