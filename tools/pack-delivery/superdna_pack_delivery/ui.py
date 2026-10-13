@@ -1,8 +1,12 @@
 """Pack Delivery sidebar panel (SuperDNA tab)."""
 
 import os
+import shutil
+import sys
+import tomllib
 from datetime import datetime
 
+import addon_utils
 import bpy
 from bpy.props import BoolProperty, CollectionProperty, IntProperty, PointerProperty, StringProperty
 
@@ -354,6 +358,112 @@ def _draw_packed_question(layout, s):
     row.operator(SDNAPACK_OT_pick_textures.bl_idname, icon="FILEBROWSER")
 
 
+ADDON_ID = "superdna_pack_delivery"
+
+
+def _installed_copies():
+    """Every Pack Delivery folder in this Blender's user extensions and legacy add-ons (any version name)."""
+    roots = [bpy.utils.user_resource("SCRIPTS", path="addons")]
+    ext = bpy.utils.user_resource("EXTENSIONS")
+    if os.path.isdir(ext):
+        roots += [os.path.join(ext, repo) for repo in os.listdir(ext)]
+    return sorted(os.path.join(root, name) for root in roots if os.path.isdir(root)
+                  for name in os.listdir(root) if name.startswith(ADDON_ID))
+
+
+def _remove_copies():
+    """Disable every enabled Pack Delivery, then delete its folders. Runs from a timer, after the button's
+    operator has finished, because disabling unregisters that operator."""
+    for name in [a.module for a in bpy.context.preferences.addons
+                 if a.module.rpartition(".")[2].startswith(ADDON_ID)]:
+        addon_utils.disable(name, default_set=True)
+    for path in _installed_copies():
+        try:
+            shutil.rmtree(path)
+        except OSError as e:
+            print("Pack Delivery uninstall: could not remove %s: %s" % (path, e))
+
+
+def _copy_version(path):
+    try:
+        with open(os.path.join(path, "blender_manifest.toml"), "rb") as f:
+            return tuple(int(x) for x in tomllib.load(f)["version"].split("."))
+    except (OSError, KeyError, ValueError, tomllib.TOMLDecodeError):
+        return (0,)  # legacy copy without a manifest: older than any extension
+
+
+def _older_copies(own_dir):
+    """Other installed copies with the same or an older version; a newer copy is left to remove this one."""
+    own = os.path.normcase(own_dir)
+    return [p for p in _installed_copies()
+            if os.path.normcase(p) != own and _copy_version(p) <= _copy_version(own_dir)]
+
+
+def _remove_older_copies():
+    """Runs once after this copy is enabled: disable and delete older copies, then re-register this one,
+    because an older copy with the same class names may have replaced its panel."""
+    own_dir = os.path.dirname(os.path.abspath(__file__))
+    if __package__ not in bpy.context.preferences.addons or not os.path.isdir(own_dir):
+        return  # a test or dev run, or this copy was itself just removed
+    if os.path.normcase(own_dir) not in map(os.path.normcase, _installed_copies()):
+        return
+    old = {os.path.normcase(p) for p in _older_copies(own_dir)}
+    if not old:
+        return
+    leftovers = []  # older copies' classes; their unregister fails once this copy has taken the shared names
+    for name in [a.module for a in bpy.context.preferences.addons]:
+        mod = sys.modules.get(name)
+        if name != __package__ and os.path.normcase(os.path.dirname(getattr(mod, "__file__", "") or "")) in old:
+            leftovers += getattr(sys.modules.get(name + ".ui"), "CLASSES", ())
+            addon_utils.disable(name, default_set=True)
+    for path in sorted(old):
+        try:
+            shutil.rmtree(path)
+            print("Pack Delivery: removed older copy %s" % path)
+        except OSError as e:
+            print("Pack Delivery: could not remove older copy %s: %s" % (path, e))
+    # An older copy shares these class names and the WindowManager property, so clear whatever is left of
+    # either copy and register this one again.
+    for c in reversed((*leftovers, *CLASSES)):
+        if c.is_registered:
+            bpy.utils.unregister_class(c)
+    if hasattr(bpy.types.WindowManager, "sdna_pack"):
+        del bpy.types.WindowManager.sdna_pack
+    register()
+
+
+class SDNAPACK_OT_uninstall(bpy.types.Operator):
+    bl_idname = "sdna_pack.uninstall"
+    bl_label = "Uninstall Pack Delivery"
+    bl_description = "Remove every copy of Pack Delivery from this Blender, so a new version can be installed"
+    bl_options = {"INTERNAL"}
+
+    def invoke(self, context, event):
+        return context.window_manager.invoke_confirm(
+            self, event, title="Uninstall Pack Delivery?",
+            message="Removes %d copy(ies) from this Blender. Restart Blender afterwards." % len(_installed_copies()),
+            confirm_text="Uninstall", icon="WARNING")
+
+    def execute(self, context):
+        if not _installed_copies():
+            self.report({"WARNING"}, "No installed copy of Pack Delivery found")
+            return {"CANCELLED"}
+        bpy.app.timers.register(_remove_copies, first_interval=0.1)
+        self.report({"INFO"}, "Pack Delivery uninstalled. Restart Blender, then install the new zip.")
+        return {"FINISHED"}
+
+
+class SDNAPACK_Preferences(bpy.types.AddonPreferences):
+    bl_idname = __package__
+
+    def draw(self, context):
+        layout = self.layout
+        layout.label(text="Installing a new version? Uninstall this one first, restart Blender, then install.")
+        row = layout.row()
+        row.alert = True
+        row.operator(SDNAPACK_OT_uninstall.bl_idname, icon="TRASH")
+
+
 MENUS = tuple(_make_menu(slot, prop) for slot, prop in SLOTS)
 
 
@@ -411,13 +521,15 @@ class SDNAPACK_PT_panel(bpy.types.Panel):
 CLASSES = (SDNAPACK_OverlayPath, SDNAPACK_Settings, SDNAPACK_OT_detect, SDNAPACK_OT_pick, SDNAPACK_OT_add_overlays,
            SDNAPACK_OT_remove_overlay, SDNAPACK_OT_use_packed, SDNAPACK_OT_pick_textures, SDNAPACK_OT_export_glb,
            SDNAPACK_OT_preview,
-           SDNAPACK_OT_run, *MENUS, SDNAPACK_PT_panel)
+           SDNAPACK_OT_run, SDNAPACK_OT_uninstall, SDNAPACK_Preferences, *MENUS, SDNAPACK_PT_panel)
 
 
 def register():
     for c in CLASSES:
         bpy.utils.register_class(c)
     bpy.types.WindowManager.sdna_pack = PointerProperty(type=SDNAPACK_Settings)
+    if not bpy.app.timers.is_registered(_remove_older_copies):
+        bpy.app.timers.register(_remove_older_copies, first_interval=1.0)
 
 
 def unregister():
