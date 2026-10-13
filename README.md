@@ -1,6 +1,6 @@
 # SDNA Tools
 
-Small Windows tools for 3D texturing work with Adobe Substance 3D Painter.
+Small Windows tools for 3D texturing work with Adobe Substance 3D Painter and Blender.
 
 ## Download
 
@@ -11,6 +11,7 @@ Ready-to-run builds are on the [Releases](../../releases) page. Each tool is a s
 | Tool | Description |
 |------|-------------|
 | `tools/spp-downgrader` | Drag-and-drop converter that rebuilds a Substance 3D Painter .spp/.uspp for an older Painter version. Portable single-file exe (see Releases). |
+| `tools/pack-delivery` | Blender add-on that packs a finished eyewear task into a versioned `FinalDelivery\<SKU>_vN` folder (packed .blend, GLB, SPP, overlays, head shots). Install zip on Releases. |
 
 ## Adding a tool
 
