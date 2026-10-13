@@ -17,6 +17,14 @@ Every Pack writes the next version and keeps the earlier ones.
 1. Download `superdna_pack_delivery-<version>.zip` from [Releases](https://github.com/msrk0320/sdna-tools/releases).
 2. Blender > Edit > Preferences > Get Extensions > drop-down (top right) > **Install from Disk**, pick the zip.
 
+## Update
+Drag the new zip onto Blender (or Install from Disk again). From 1.6.0 on, the new version removes every older copy of
+Pack Delivery from that Blender (also leftovers in the legacy add-ons folder) and takes over the panel.
+
+Something still looks old? Preferences > Add-ons > SuperDNA Pack Delivery > expand > **Uninstall Pack Delivery**,
+restart Blender, then install the zip. Versions before 1.6.0 have no button: close Blender and run
+`Remove-PackDelivery.bat`, which removes Pack Delivery from every Blender version on the PC.
+
 ## Use (3D View > N panel > SuperDNA > Pack Delivery)
 1. Open and save the final `<TaskID>.blend`.
 2. **Detect** fills SKU, task ID, GLB, SPP, Textures folder, and every overlay in the task folder.
