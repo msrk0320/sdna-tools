@@ -26,6 +26,10 @@ Every Pack writes the next version and keeps the earlier ones. The head model us
 4. **Preview** lists errors, warnings and what will be delivered, and the target `FinalDelivery\<SKU>_v<N>`.
 5. **Pack** writes that version and opens it. A `pack_report_<time>.txt` is left in the task folder.
 
+Working-file names: the .blend, GLB and SPP may be named `<TaskID>`, `<TaskID>_<SKU>` or `<SKU>`, each optionally followed by
+`_v1`, `_r1`, `_rev1`, `_ver1`, `_final` or `_fix` (also stacked, e.g. `_v2_final`). When several versions exist, Detect picks the
+highest number. Delivered files are always named after the SKU.
+
 Expected inputs: one material on the meshes named `Mat_<SKU>`, and Painter's export in `<spp name>\Textures\` with `Mat_<SKU>_BaseColor.png`, `_Roughness.png` (required) and `_Metallic`, `_Normal`, `_Transmissive` (optional).
 
 ## Build

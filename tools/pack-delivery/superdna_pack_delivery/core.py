@@ -31,6 +31,8 @@ OVERLAY_DELIVERED = "Overlay"
 PACK_DIR = "Texture"  # maps staged for packing into the .blend, removed before the delivery is published
 HEAD_FIT = (1.0, 3.0)  # head width / frame width that counts as a plausible fit
 QA_RE = re.compile(r"_QA_v(\d+)$", re.IGNORECASE)
+# Trailing version words people add to working files, also stacked: _v2, _r1, _rev3, _ver4, _final, _fix
+NAME_SUFFIX_RE = re.compile(r"(?:[_ ](?:v|r|rev|ver)\d+|[_ ](?:final|fix|fixed))+$", re.IGNORECASE)
 
 
 class PackError(Exception):
@@ -43,11 +45,34 @@ def sku_from_material(name):
     return re.sub(r"(?i)^mat_", "", stem)
 
 
+def name_base(stem):
+    """Drop trailing version words: 'SDNA-000001_ABC123_v2_final' -> 'SDNA-000001_ABC123'."""
+    return NAME_SUFFIX_RE.sub("", stem)
+
+
+def name_version(stem):
+    """N of the last _vN/_rN/_revN/_verN suffix; 0 without one."""
+    m = NAME_SUFFIX_RE.search(stem)
+    numbers = re.findall(r"\d+", m.group(0)) if m else []
+    return int(numbers[-1]) if numbers else 0
+
+
+def is_task_name(stem, task_id, sku=""):
+    """True for <task>, <task>_<SKU> or <SKU>, each optionally followed by version words."""
+    if not task_id:
+        return False
+    names = {task_id}
+    if sku:
+        names |= {sku, "%s_%s" % (task_id, sku), "%s %s" % (task_id, sku)}
+    return name_base(stem).lower() in {n.lower() for n in names}
+
+
 def task_id_from_blend(blend_path):
-    """'SDNA-000001_shader.blend' -> 'SDNA-000001'; any other name -> its stem."""
-    stem = os.path.splitext(os.path.basename(blend_path))[0]
-    m = re.match(r"^(SDNA-\d+)_.+$", stem, re.IGNORECASE)
-    return m.group(1) if m else stem
+    """'SDNA-000001_shader.blend' and 'SDNA-000001_ABC123_v2.blend' -> 'SDNA-000001';
+    any other name -> its stem without version words ('ABC123_r1.blend' -> 'ABC123')."""
+    base = name_base(os.path.splitext(os.path.basename(blend_path))[0])
+    m = re.match(r"^(SDNA-\d+)(?:[_ ].*)?$", base, re.IGNORECASE)
+    return m.group(1) if m else base
 
 
 def sku_problems(sku, dest_root=DEFAULT_DEST_ROOT):
@@ -139,8 +164,8 @@ def find_glb(task_dir, task_id, sku=""):
             tier = 4
         elif version is not None:
             tier = 1
-        elif name == (task_id + ".glb").lower():
-            tier = 2
+        elif is_task_name(_stem(p), task_id, sku):
+            tier, version = 2, name_version(_stem(p))  # the highest _vN/_rN ranks first
         else:
             tier = 3
         out.append(Candidate(p, tier, os.path.getmtime(p), version or 0))
@@ -154,7 +179,12 @@ def find_spp(task_dir, task_id, sku=""):
         if "_autosave" in name:
             continue
         version = qa_version(p)
-        tier = 1 if version is not None else (2 if name == (task_id + ".spp").lower() else 3)
+        if version is not None:
+            tier = 1
+        elif is_task_name(_stem(p), task_id, sku):
+            tier, version = 2, name_version(_stem(p))  # the highest _vN/_rN ranks first
+        else:
+            tier = 3
         out.append(Candidate(p, tier, os.path.getmtime(p), version or 0))
     return rank(out)
 
@@ -356,8 +386,9 @@ def build_plan(inp):
     err.extend(sku_problems(sku, inp.dest_root))
     if not inp.blend_path:
         err.append("Save the .blend first.")
-    elif task and os.path.basename(inp.blend_path).lower() != (task + ".blend").lower():
-        err.append("Open the final %s.blend (or rename it) before packing." % task)
+    elif task and not is_task_name(_stem(inp.blend_path), task, sku):
+        err.append("Open the final %s.blend (or rename it) before packing; the SKU and _v1, _r1, _final "
+                   "are allowed in the name." % task)
     if inp.blend_dirty:
         err.append("Save the .blend first: it has unsaved changes.")
     mats = list(dict.fromkeys(inp.material_names))
