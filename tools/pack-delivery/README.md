@@ -21,6 +21,9 @@ Every Pack writes the next version and keeps the earlier ones.
 1. Open and save the final `<TaskID>.blend`.
 2. **Detect** fills SKU, task ID, GLB, SPP, Textures folder, and every overlay in the task folder.
    Use **+** (Shift/Ctrl-click several files) or the arrow menu to add overlays, **X** to drop one.
+   No GLB found: press **Export GLB** (exports the open .blend to `<name>.glb` next to it, Client Validator settings).
+   No Textures folder but the .blend has packed maps: the panel lists them; **Yes, Use Them** delivers them as they are
+   (BaseColor and Roughness still required), **No, Pick the Folder** asks for the Textures folder.
 3. **Preview** lists errors, warnings and what will be delivered, and the target `FinalDelivery\<SKU>_v<N>`.
 4. **Pack** writes that version and opens it. A `pack_report_<time>.txt` is left in the task folder.
 

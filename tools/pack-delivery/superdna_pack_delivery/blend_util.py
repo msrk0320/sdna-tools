@@ -52,14 +52,31 @@ def _abspath(image):
     return os.path.normpath(bpy.path.abspath(image.filepath, library=image.library))
 
 
-def map_suffix(image, sku):
-    if not image.filepath:
-        return None
-    stem = os.path.splitext(os.path.basename(_abspath(image)))[0]
+def _stem_suffix(stem, sku):
     m = re.match(r"^Mat_%s_(%s)$" % (re.escape(sku), "|".join(core.MAP_SUFFIXES)), stem, re.IGNORECASE)
     if not m:
         return None
     return next(s for s in core.MAP_SUFFIXES if s.lower() == m.group(1).lower())
+
+
+def map_suffix(image, sku):
+    if not image.filepath:
+        return None
+    return _stem_suffix(os.path.splitext(os.path.basename(_abspath(image)))[0], sku)
+
+
+def packed_images(mat):
+    return [img for img in wired_images(mat) if img.packed_file]
+
+
+def packed_map_suffixes(mat, sku):
+    """Map suffixes of the packed SKU images, by file name or, failing that, by image name."""
+    out = []
+    for img in packed_images(mat):
+        suffix = map_suffix(img, sku) or _stem_suffix(os.path.splitext(img.name)[0], sku)
+        if suffix and suffix not in out:
+            out.append(suffix)
+    return out
 
 
 def sku_image_dirs(mat, sku):
@@ -97,12 +114,16 @@ def _run_background(blend, script, args, timeout):
     return proc
 
 
-def make_packed_blend(staging, sku, expected, timeout=120):
-    """Save a copy of the open file into staging and pack it in a background Blender."""
+def make_packed_blend(staging, sku, expected, packed=False, timeout=120):
+    """Save a copy of the open file into staging and pack it in a background Blender.
+
+    packed: the maps are already packed in the .blend; keep them instead of relinking to Texture\\.
+    """
     global LAST_LOG
     LAST_LOG = ""
     path = os.path.join(staging, sku + ".blend")
     bpy.ops.wm.save_as_mainfile(filepath=path, copy=True, relative_remap=True)
-    proc = _run_background(path, "pack_blend.py", [sku, os.path.join(staging, core.PACK_DIR)], timeout)
+    texture_dir = "" if packed else os.path.join(staging, core.PACK_DIR)
+    proc = _run_background(path, "pack_blend.py", [sku, texture_dir], timeout)
     core.check_packed(proc.stdout, proc.returncode, expected)
 
