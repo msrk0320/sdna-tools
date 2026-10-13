@@ -8,9 +8,7 @@ from bpy.props import BoolProperty, CollectionProperty, IntProperty, PointerProp
 
 from . import blend_util, core
 
-HEAD_FBX = os.path.join(os.path.dirname(os.path.abspath(__file__)), "NewHead.fbx")  # shipped inside the add-on
-SLOTS = (("GLB", "glb"), ("SPP", "spp"), ("Textures folder", "textures"), ("Overlay", "overlays"),
-         ("Head overlay", "head_overlay"))
+SLOTS = (("GLB", "glb"), ("SPP", "spp"), ("Textures folder", "textures"), ("Overlay", "overlays"))
 STATE = {}        # plan, key, task_dir
 CANDIDATES = {}   # slot name -> ranked [core.Candidate]
 
@@ -30,7 +28,7 @@ def _dirty():
 
 def _key(context):
     s = context.window_manager.sdna_pack
-    return (s.sku, s.task_id, s.glb, s.spp, s.textures, tuple(o.path for o in s.overlays), s.head_overlay, bpy.data.filepath, _dirty())
+    return (s.sku, s.task_id, s.glb, s.spp, s.textures, tuple(o.path for o in s.overlays), bpy.data.filepath, _dirty())
 
 
 def _inputs(context):
@@ -42,7 +40,7 @@ def _inputs(context):
         material_names=blend_util.materials_in_use(),
         image_dirs=blend_util.sku_image_dirs(mat, sku) if mat else [],
         glb=_abs(s.glb), spp=_abs(s.spp), textures=_abs(s.textures),
-        overlays=[_abs(o.path) for o in s.overlays if o.path], head_overlay=_abs(s.head_overlay),
+        overlays=[_abs(o.path) for o in s.overlays if o.path],
         dest_root=os.path.join(os.path.dirname(bpy.data.filepath), core.DELIVERY_DIR), candidates=CANDIDATES,
         missing_images=blend_util.missing_images(mat, sku) if mat else [])
 
@@ -91,8 +89,6 @@ class SDNAPACK_Settings(bpy.types.PropertyGroup):
     spp: StringProperty(name="SPP", subtype="FILE_PATH", update=_on_spp_or_sku)
     textures: StringProperty(name="Textures folder", subtype="DIR_PATH")
     overlays: CollectionProperty(type=SDNAPACK_OverlayPath)
-    head_overlay: StringProperty(name="Head overlay", subtype="DIR_PATH",
-                                 description="Folder with <SKU>_head_front.png and <SKU>_head_profile.png")
 
 
 class SDNAPACK_OT_detect(bpy.types.Operator):
@@ -119,8 +115,7 @@ class SDNAPACK_OT_detect(bpy.types.Operator):
         s.overlays.clear()
         for c in CANDIDATES["Overlay"]:  # modellers sometimes send several; Preview lists each one
             _add_overlay(s, c.path)
-        CANDIDATES["Head overlay"] = core.find_head_overlay(task_dir)
-        for slot, prop in (("GLB", "glb"), ("SPP", "spp"), ("Head overlay", "head_overlay")):
+        for slot, prop in (("GLB", "glb"), ("SPP", "spp")):
             setattr(s, prop, CANDIDATES[slot][0].path if CANDIDATES[slot] else "")
         _refresh_textures(s)
         self.report({"INFO"}, "Detected slots for %s / %s" % (s.sku or "?", s.task_id))
@@ -179,34 +174,6 @@ class SDNAPACK_OT_remove_overlay(bpy.types.Operator):
 
     def execute(self, context):
         context.window_manager.sdna_pack.overlays.remove(self.index)
-        return {"FINISHED"}
-
-
-class SDNAPACK_OT_capture_head(bpy.types.Operator):
-    bl_idname = "sdna_pack.capture_head"
-    bl_label = "Capture Head Overlays"
-    bl_description = ("Render the product on the head, front (orthographic) and profile (perspective), into "
-                      "the task's HeadOverlay folder. The head is never added to the open file")
-
-    def execute(self, context):
-        s = context.window_manager.sdna_pack
-        sku = s.sku.strip()
-        if not bpy.data.filepath or _dirty():
-            self.report({"ERROR"}, "Save the .blend first.")
-            return {"CANCELLED"}
-        if not sku:
-            self.report({"ERROR"}, "Press Detect first: the images are named after the SKU.")
-            return {"CANCELLED"}
-        task_dir = os.path.dirname(bpy.data.filepath)
-        try:
-            folder, factor = blend_util.capture_head_overlays(task_dir, sku, HEAD_FBX)
-        except core.PackError as e:
-            self.report({"ERROR"}, str(e))
-            return {"CANCELLED"}
-        s.head_overlay = folder
-        CANDIDATES["Head overlay"] = core.find_head_overlay(task_dir)
-        scaled = " (head scaled x%g to fit the product)" % factor if factor != 1.0 else ""
-        self.report({"INFO"}, "Head overlays saved in %s%s" % (folder, scaled))
         return {"FINISHED"}
 
 
@@ -321,7 +288,6 @@ class SDNAPACK_PT_panel(bpy.types.Panel):
             row = layout.row(align=True)
             row.prop(s, prop, text=slot)
             row.menu("SDNAPACK_MT_" + prop, text="", icon="DOWNARROW_HLT")
-        layout.operator(SDNAPACK_OT_capture_head.bl_idname, icon="RENDER_STILL")
         row = layout.row(align=True)
         row.operator(SDNAPACK_OT_preview.bl_idname, icon="HIDE_OFF")
         row.operator(SDNAPACK_OT_run.bl_idname, icon="PACKAGE")
@@ -340,7 +306,7 @@ class SDNAPACK_PT_panel(bpy.types.Panel):
                 box.label(text="%d texture map(s) → packed inside %s.blend" % (len(plan.maps), plan.sku))
 
 
-CLASSES = (SDNAPACK_OverlayPath, SDNAPACK_Settings, SDNAPACK_OT_detect, SDNAPACK_OT_pick, SDNAPACK_OT_add_overlays, SDNAPACK_OT_remove_overlay, SDNAPACK_OT_capture_head, SDNAPACK_OT_preview,
+CLASSES = (SDNAPACK_OverlayPath, SDNAPACK_Settings, SDNAPACK_OT_detect, SDNAPACK_OT_pick, SDNAPACK_OT_add_overlays, SDNAPACK_OT_remove_overlay, SDNAPACK_OT_preview,
            SDNAPACK_OT_run, *MENUS, SDNAPACK_PT_panel)
 
 

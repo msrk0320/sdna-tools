@@ -1,6 +1,6 @@
 schema_version = "1.0.0"
 id = "superdna_pack_delivery"
-version = "1.3.0"
+version = "1.4.0"
 name = "SuperDNA Pack Delivery"
 tagline = "Pack an eyewear task into the client delivery folder"
 maintainer = "MadSrei"
@@ -10,7 +10,7 @@ license = ["SPDX:GPL-3.0-or-later"]
 tags = ["Import-Export"]
 
 [permissions]
-files = "Read task files, render head overlays, write deliveries"
+files = "Read task files, write deliveries"
 
 [build]
 paths_exclude_pattern = ["__pycache__/", "*.pyc", "/.git/", "/*.zip"]

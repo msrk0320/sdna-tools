@@ -11,7 +11,7 @@ Ready-to-run builds are on the [Releases](../../releases) page. Each tool is a s
 | Tool | Description |
 |------|-------------|
 | `tools/spp-downgrader` | Drag-and-drop converter that rebuilds a Substance 3D Painter .spp/.uspp for an older Painter version. Portable single-file exe (see Releases). |
-| `tools/pack-delivery` | Blender add-on that packs a finished eyewear task into a versioned `FinalDelivery\<SKU>_vN` folder (packed .blend, GLB, SPP, overlays, head shots). Install zip on Releases. |
+| `tools/pack-delivery` | Blender add-on that packs a finished eyewear task into a versioned `FinalDelivery\<SKU>_vN` folder (packed .blend, GLB, SPP, overlays). Install zip on Releases. |
 | Painter Live View | Substance 3D Painter panel that shows your textures in the client viewer's exact render, live while you paint, following Painter's camera. Installer on Releases (installer only, no source here). |
 
 ## Adding a tool

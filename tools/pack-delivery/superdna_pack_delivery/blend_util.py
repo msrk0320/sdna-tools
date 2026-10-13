@@ -1,10 +1,8 @@
-"""Blender-side helpers for Pack Delivery (facts from the open file, packed copy, head capture)."""
+"""Blender-side helpers for Pack Delivery (facts from the open file, packed copy)."""
 
 import os
 import re
-import shutil
 import subprocess
-import tempfile
 
 import bpy
 
@@ -108,26 +106,3 @@ def make_packed_blend(staging, sku, expected, timeout=120):
     proc = _run_background(path, "pack_blend.py", [sku, os.path.join(staging, core.PACK_DIR)], timeout)
     core.check_packed(proc.stdout, proc.returncode, expected)
 
-
-def capture_head_overlays(task_dir, sku, head_fbx, timeout=300):
-    """Render the head overlays from a throwaway copy of the open file into <task>\\HeadOverlay.
-
-    The head is only ever imported into the copy. Returns (folder, head scale factor).
-    """
-    global LAST_LOG
-    LAST_LOG = ""
-    if not os.path.isfile(head_fbx):
-        raise core.PackError("Head file not found: %s" % head_fbx)
-    tmp = tempfile.mkdtemp(prefix="madplugin_head_")
-    try:
-        copy = os.path.join(tmp, "capture.blend")
-        bpy.ops.wm.save_as_mainfile(filepath=copy, copy=True, relative_remap=True)
-        proc = _run_background(copy, "head_capture.py", [head_fbx, os.path.join(tmp, "out"), sku], timeout)
-        shots, factor = core.check_capture(proc.stdout, proc.returncode)
-        folder = os.path.join(task_dir, core.HEAD_DIR)
-        os.makedirs(folder, exist_ok=True)
-        for view in core.HEAD_VIEWS:
-            shutil.copy2(shots[view], os.path.join(folder, core.head_shot_name(sku, view)))
-        return folder, factor
-    finally:
-        shutil.rmtree(tmp, ignore_errors=True)

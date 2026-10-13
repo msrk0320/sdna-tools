@@ -23,13 +23,8 @@ INVALID_CHARS = set('\\/:*?"<>|')
 MAX_PATH_LEN = 240
 DEFAULT_DEST_ROOT = r"D:\SuperDNA\FinalDelivery"
 DELIVERY_DIR = "FinalDelivery"  # next to the .blend; every pack adds <SKU>_v<N> inside it
-HEAD_DIR = "HeadOverlay"
-HEAD_VIEWS = ("front", "profile")
-# Delivered names, spelled as in the client's folder structure (2026-10-08): 01 is the profile, 02 the front.
-HEAD_DELIVERED = {"profile": "Head Postion_01.png", "front": "Head Postion_02.png"}
 OVERLAY_DELIVERED = "Overlay"
 PACK_DIR = "Texture"  # maps staged for packing into the .blend, removed before the delivery is published
-HEAD_FIT = (1.0, 3.0)  # head width / frame width that counts as a plausible fit
 QA_RE = re.compile(r"_QA_v(\d+)$", re.IGNORECASE)
 # Trailing version words people add to working files, also stacked: _v2, _r1, _rev3, _ver4, _final, _fix
 NAME_SUFFIX_RE = re.compile(r"(?:[_ ](?:v|r|rev|ver)\d+|[_ ](?:final|fix|fixed))+$", re.IGNORECASE)
@@ -223,15 +218,6 @@ def find_overlay(task_dir):
     return rank(out)
 
 
-def find_head_overlay(task_dir):
-    out = []
-    for f in os.listdir(task_dir):
-        p = os.path.join(task_dir, f)
-        if os.path.isdir(p) and f.lower() == HEAD_DIR.lower():
-            out.append(Candidate(p, 1, os.path.getmtime(p)))
-    return out
-
-
 def overlay_names(paths):
     """One overlay is delivered as Overlay.<ext>; several as Overlay_01.<ext>, Overlay_02.<ext>, ... in order."""
     def ext(p):
@@ -249,42 +235,6 @@ def next_version(dest_root, sku):
     except OSError:  # FinalDelivery is created by the first pack
         names = []
     return 1 + max((int(m.group(1)) for n in names if (m := pattern.match(n))), default=0)
-
-
-def head_shot_name(sku, view):
-    return "%s_head_%s.png" % (sku, view)
-
-
-# ---------------------------------------------------------------- head capture
-
-def head_scale_factor(head_width, frame_width):
-    """NewHead.fbx imports at 1/100 of the size some scenes use for the product: x100 when narrower than the frame."""
-    return 100.0 if head_width < frame_width else 1.0
-
-
-def head_fit_problem(head_width, frame_width):
-    if frame_width <= 0:
-        return "the scene has no product mesh to measure."
-    ratio = head_width / frame_width
-    if not HEAD_FIT[0] <= ratio <= HEAD_FIT[1]:
-        return ("the head is %.2fx the frame width after scaling (expected %g-%gx); check NewHead.fbx and "
-                "the scene units." % (ratio, HEAD_FIT[0], HEAD_FIT[1]))
-    return None
-
-
-def check_capture(stdout, returncode):
-    """Parse the capture script's output. Returns ({view: png path}, head scale factor)."""
-    problems = re.findall(r"^HEADERROR: (.*)$", stdout or "", re.MULTILINE)
-    if problems:
-        raise PackError("Head capture: %s" % "; ".join(p.strip() for p in problems))
-    if returncode != 0:
-        raise PackError("Background Blender failed (exit code %s)." % returncode)
-    shots = dict(re.findall(r"^HEADSHOT:(\w+):(.+?)\s*$", stdout or "", re.MULTILINE))
-    missing = [v for v in HEAD_VIEWS if v not in shots]
-    if missing:
-        raise PackError("Head capture made no %s image." % " or ".join(missing))
-    m = re.search(r"^HEADSCALE:([\d.]+)\s*$", stdout or "", re.MULTILINE)
-    return shots, float(m.group(1)) if m else 1.0
 
 
 # ---------------------------------------------------------------- textures
@@ -331,7 +281,6 @@ class Inputs:
     spp: str
     textures: str
     overlays: list            # overlay images, in the order picked
-    head_overlay: str = ""
     dest_root: str = DEFAULT_DEST_ROOT
     candidates: dict = field(default_factory=dict)   # slot name -> ranked [Candidate]
     missing_images: list = field(default_factory=list)  # wired non-SKU images whose file is gone (not packed)
@@ -402,7 +351,7 @@ def build_plan(inp):
 
     # slots
     slots = [("GLB", inp.glb, os.path.isfile), ("SPP", inp.spp, os.path.isfile),
-             ("Textures folder", inp.textures, os.path.isdir), ("Head overlay", inp.head_overlay, os.path.isdir)]
+             ("Textures folder", inp.textures, os.path.isdir)]
     present = {}
     for slot, path, exists in slots:
         if not path:
@@ -427,14 +376,6 @@ def build_plan(inp):
     if "SPP" in present:
         plan.copies.append((present["SPP"], sku + ".spp"))
     plan.copies += list(zip(overlays, overlay_names(overlays)))
-    if "Head overlay" in present:
-        for view in HEAD_VIEWS:
-            name = head_shot_name(sku, view)
-            path = os.path.join(present["Head overlay"], name)
-            if os.path.isfile(path):
-                plan.copies.append((path, HEAD_DELIVERED[view]))
-            else:
-                err.append("Head overlay folder has no %s; press Capture Head Overlays." % name)
 
     maps = {}
     if "Textures folder" in present:
